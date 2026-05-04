@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1a1a2e">
+<title>日記を書く</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #1a1a2e; --surface: #16213e; --accent: #e2b96f; --accent2: #f5d08a;
+    --text: #f0ece2; --text2: #a89f8c; --border: rgba(226,185,111,0.2); --radius: 16px;
+  }
+  body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 40px; }
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 18px 20px 14px; position: sticky; top: 0; z-index: 10; }
+  header h1 { font-size: 17px; font-weight: 500; color: var(--accent); letter-spacing: 0.05em; }
+  header p { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .container { padding: 20px 16px; max-width: 540px; margin: 0 auto; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; }
+  .card-title { font-size: 11px; font-weight: 500; color: var(--accent); letter-spacing: 0.1em; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+  .card-title::before { content: ''; display: inline-block; width: 3px; height: 12px; background: var(--accent); border-radius: 2px; }
+  label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 6px; margin-top: 14px; }
+  label:first-of-type { margin-top: 0; }
+  input[type="text"], input[type="password"], textarea {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; font-size: 15px; font-family: 'Noto Sans JP', sans-serif;
+    color: var(--text); outline: none; -webkit-appearance: none; transition: border-color 0.2s;
+  }
+  input:focus, textarea:focus { border-color: var(--accent); }
+  textarea { min-height: 120px; resize: none; line-height: 1.7; }
+  .token-row { display: flex; gap: 8px; align-items: center; }
+  .token-row input { flex: 1; }
+  .btn-eye { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px; color: var(--text2); font-size: 16px; cursor: pointer; flex-shrink: 0; }
+  .settings-toggle { font-size: 12px; color: var(--text2); cursor: pointer; text-align: center; padding: 8px; border-radius: 8px; margin-bottom: 16px; border: 1px dashed var(--border); }
+  .photo-area { border: 1.5px dashed var(--border); border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; position: relative; }
+  .photo-area input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .photo-area p { font-size: 13px; color: var(--text2); }
+  .photo-icon { font-size: 24px; display: block; margin-bottom: 6px; }
+  .preview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+  .preview-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); }
+  .btn { width: 100%; padding: 16px; border: none; border-radius: var(--radius); font-size: 16px; font-weight: 500; font-family: 'Noto Sans JP', sans-serif; cursor: pointer; transition: opacity 0.2s, transform 0.1s; margin-bottom: 8px; }
+  .btn:active { transform: scale(0.98); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .btn-primary { background: var(--accent); color: var(--bg); }
+  .status { margin-top: 12px; padding: 14px; border-radius: 12px; font-size: 14px; line-height: 1.6; display: none; }
+  .status.ok { display: block; background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.3); color: #86efac; }
+  .status.err { display: block; background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.3); color: #fca5a5; }
+  .status.loading { display: block; background: rgba(226,185,111,0.1); border: 1px solid var(--border); color: var(--accent2); }
+  .site-link { display: block; text-align: center; font-size: 13px; color: var(--text2); margin-top: 20px; text-decoration: none; }
+  .site-link span { color: var(--accent); }
+  .dots::after { content: ''; animation: dots 1.2s infinite; }
+  @keyframes dots { 0%{content:''} 33%{content:'.'} 66%{content:'..'} 100%{content:'...'} }
+</style>
+</head>
+<body>
+<header>
+  <h1>森家の日記</h1>
+  <p id="today-date"></p>
+</header>
+<div class="container">
+
+  <div class="settings-toggle" onclick="toggleSettings()">⚙ 設定（初回のみ）</div>
+  <div id="settings-card" class="card" style="display:none">
+    <div class="card-title">API設定</div>
+    <label>GitHub Token</label>
+    <div class="token-row">
+      <input type="password" id="gh-token" placeholder="ghp_xxxxxxxxxxxx" oninput="saveSettings()" />
+      <button class="btn-eye" onclick="toggleVis('gh-token')">👁</button>
+    </div>
+    <label>Anthropic API Key</label>
+    <div class="token-row">
+      <input type="password" id="api-key" placeholder="sk-ant-xxxxxxxxxxxx" oninput="saveSettings()" />
+      <button class="btn-eye" onclick="toggleVis('api-key')">👁</button>
+    </div>
+    <label>GitHubユーザー名</label>
+    <input type="text" id="gh-user" value="hirossvb-freedom" oninput="saveSettings()" />
+    <label>リポジトリ名</label>
+    <input type="text" id="gh-repo" value="Diary" oninput="saveSettings()" />
+  </div>
+
+  <div class="card">
+    <div class="card-title">今日のできごと</div>
+    <label>タイトル（省略OK）</label>
+    <input type="text" id="title" placeholder="例：公園で凧揚げした" />
+    <label>今日あったこと（箇条書きでOK）</label>
+    <textarea id="memo" placeholder="・子どもたちと公園へ&#10;・凧が木に引っかかって大笑い&#10;・帰りにアイスを食べた"></textarea>
+  </div>
+
+  <div class="card">
+    <div class="card-title">写真（省略OK）</div>
+    <div class="photo-area">
+      <input type="file" id="photos" accept="image/*" multiple onchange="previewImages()" />
+      <span class="photo-icon">📷</span>
+      <p>タップして写真を追加</p>
+    </div>
+    <div class="preview-grid" id="preview"></div>
+  </div>
+
+  <button class="btn btn-primary" id="post-btn" onclick="postDiary()">投稿する</button>
+  <div class="status" id="status"></div>
+
+  <a href="https://hirossvb-freedom.github.io/Diary" class="site-link" target="_blank">
+    日記サイトを見る → <span>hirossvb-freedom.github.io/Diary</span>
+  </a>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+function init() {
+  const now = new Date();
+  $('today-date').textContent = now.toLocaleDateString('ja-JP', {year:'numeric',month:'long',day:'numeric',weekday:'long'});
+  const saved = localStorage.getItem('diary-settings');
+  if (saved) {
+    const s = JSON.parse(saved);
+    $('gh-token').value = s.token || '';
+    $('api-key').value = s.apikey || '';
+    $('gh-user').value = s.user || 'hirossvb-freedom';
+    $('gh-repo').value = s.repo || 'Diary';
+  } else {
+    $('settings-card').style.display = 'block';
+  }
+}
+
+function saveSettings() {
+  localStorage.setItem('diary-settings', JSON.stringify({
+    token: $('gh-token').value,
+    apikey: $('api-key').value,
+    user: $('gh-user').value,
+    repo: $('gh-repo').value
+  }));
+}
+
+function toggleSettings() {
+  const c = $('settings-card');
+  c.style.display = c.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleVis(id) {
+  const el = $(id);
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+function previewImages() {
+  const preview = $('preview');
+  preview.innerHTML = '';
+  for (const f of $('photos').files) {
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(f);
+    preview.appendChild(img);
+  }
+}
+
+function setStatus(msg, type) {
+  const s = $('status');
+  s.className = 'status ' + type;
+  s.innerHTML = msg;
+}
+
+// 写真を最大1600px・4MB以内にリサイズしてbase64で返す
+async function resizeImage(file, maxPx = 1600, maxBytes = 4 * 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxPx || height > maxPx) {
+        const scale = maxPx / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(url);
+
+      let quality = 0.85;
+      const tryEncode = () => {
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        const b64 = dataUrl.split(',')[1];
+        const bytes = Math.ceil(b64.length * 0.75);
+        if (bytes > maxBytes && quality > 0.4) {
+          quality -= 0.1;
+          tryEncode();
+        } else {
+          resolve(b64);
+        }
+      };
+      tryEncode();
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+async function postDiary() {
+  const token = $('gh-token').value.trim();
+  const apikey = $('api-key').value.trim();
+  const user = $('gh-user').value.trim();
+  const repo = $('gh-repo').value.trim();
+  const memo = $('memo').value.trim();
+  const titleVal = $('title').value.trim();
+  const files = $('photos').files;
+
+  if (!token || !apikey) {
+    setStatus('設定からGitHub TokenとAPI Keyを入力してください', 'err');
+    $('settings-card').style.display = 'block';
+    return;
+  }
+  if (!memo) { setStatus('メモを入力してください', 'err'); return; }
+
+  const btn = $('post-btn');
+  btn.disabled = true;
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('ja-JP', {year:'numeric',month:'long',day:'numeric',weekday:'long'});
+
+  try {
+    setStatus('<span class="dots">写真を処理中</span>', 'loading');
+
+    let imageContents = [];
+    for (const f of files) {
+      const b64 = await resizeImage(f);
+      imageContents.push({type:'image', source:{type:'base64', media_type:'image/jpeg', data: b64}});
+    }
+
+    setStatus('<span class="dots">Claudeが文章を生成中</span>', 'loading');
+
+    const userContent = [
+      ...imageContents,
+      {type:'text', text:`以下のメモをもとに、自然体・話し言葉の家族日記を書いてください。\n\n日付：${dateStr}\nタイトルメモ：${titleVal||'（なし）'}\n内容メモ：\n${memo}\n\n条件：\n・300〜500文字程度\n・話し言葉でリラックスした雰囲気\n・家族の温かみが伝わる文章\n・タイトルも考えて\n\n出力形式：\nTITLE: （タイトル）\nBODY:\n（本文）`}
+    ];
+
+    const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apikey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:1000, messages:[{role:'user', content: userContent}]})
+    });
+
+    const aiData = await aiRes.json();
+    if (!aiRes.ok) throw new Error(aiData.error?.message || 'Claude APIエラー');
+
+    const text = aiData.content[0].text;
+    const titleMatch = text.match(/TITLE:\s*(.+)/);
+    const bodyMatch = text.match(/BODY:\s*([\s\S]+)/);
+    const genTitle = titleMatch ? titleMatch[1].trim() : (titleVal || dateStr);
+    const genBody = bodyMatch ? bodyMatch[1].trim() : text;
+
+    setStatus('<span class="dots">GitHubに投稿中</span>', 'loading');
+
+    const ghHeaders = {'Authorization':`token ${token}`, 'Content-Type':'application/json'};
+    const fileRes = await fetch(`https://api.github.com/repos/${user}/${repo}/contents/index.html`, {headers: ghHeaders});
+    const fileData = await fileRes.json();
+    if (!fileRes.ok) throw new Error('index.htmlの取得失敗: ' + fileData.message);
+
+    const currentContent = atob(fileData.content.replace(/\n/g,''));
+    const newEntry = `\n<div class="entry">\n  <div class="date">${dateStr}</div>\n  <h2>${genTitle}</h2>\n  ${genBody.split('\n').filter(l=>l.trim()).map(l=>`<p>${l}</p>`).join('\n  ')}\n</div>`;
+    const insertAfter = '<h1>森家の日記 🏠</h1>';
+    const updatedContent = currentContent.includes(insertAfter)
+      ? currentContent.replace(insertAfter, insertAfter + newEntry)
+      : currentContent.replace('</body>', newEntry + '\n</body>');
+    const encoded = btoa(unescape(encodeURIComponent(updatedContent)));
+
+    const updateRes = await fetch(`https://api.github.com/repos/${user}/${repo}/contents/index.html`, {
+      method: 'PUT', headers: ghHeaders,
+      body: JSON.stringify({message:`日記追加: ${genTitle}`, content: encoded, sha: fileData.sha})
+    });
+    const updateData = await updateRes.json();
+    if (!updateRes.ok) throw new Error('更新失敗: ' + updateData.message);
+
+    setStatus(`✓ 「${genTitle}」を投稿しました！<br><small style="opacity:0.7">1〜2分後にサイトに反映されます</small>`, 'ok');
+    $('memo').value = '';
+    $('title').value = '';
+    $('preview').innerHTML = '';
+    $('photos').value = '';
+
+  } catch(e) {
+    setStatus('エラー: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+init();
+</script>
+</body>
+</html>
